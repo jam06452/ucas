@@ -29,6 +29,18 @@ config :swoosh, :api_client, false
 # Print only warnings and errors during test
 config :logger, level: :warning
 
+# Route Typesense calls through an in-memory client so tests never depend on a
+# running Typesense server. See `Ucas.Search.FakeTypesenseClient`.
+config :open_api_typesense,
+  api_key: "xyz",
+  host: "localhost",
+  port: 8108,
+  scheme: "http",
+  client: Ucas.Search.FakeTypesenseClient
+
+# Tests exercise indexing explicitly; don't index on boot.
+config :ucas, search_bootstrap: false
+
 # Initialize plugs at runtime for faster test compilation
 config :phoenix, :plug_init_mode, :runtime
 
