@@ -34,12 +34,12 @@ defmodule Ucas.Repo.Migrations.CreateTables do
     create table(:course, primary_key: false) do
       add :id, :uuid, primary_key: true
       add :provider_id, references(:provider, type: :uuid, on_delete: :delete_all), null: false
-      add :code, :string, null: false, size: 16
+      add :code, :string, size: 16
       add :name, :string, null: false, size: 255
       add :created_at, :naive_datetime, null: false, default: fragment("now()")
     end
 
-    create unique_index(:course, [:provider_id, :code], name: :unique_provider_course_code)
+    create index(:course, [:provider_id, :code], name: :course_provider_id_code_index)
 
     create table(:course_study_option, primary_key: false) do
       add :id, :uuid, primary_key: true
