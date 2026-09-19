@@ -17,6 +17,25 @@ services:
       timeout: 5s
       retries: 5
 
+  typesense:
+    image: typesense/typesense:27.1
+    container_name: ucas_typesense
+    restart: unless-stopped
+    environment:
+      TYPESENSE_DATA_DIR: /data
+      TYPESENSE_API_KEY: xyz
+    ports:
+      - "8108:8108"
+    volumes:
+      - ucas_typesense_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8108/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
 volumes:
   ucas_pgdata:
+    driver: local
+  ucas_typesense_data:
     driver: local

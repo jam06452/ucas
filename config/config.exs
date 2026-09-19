@@ -11,6 +11,11 @@ config :ucas,
   ecto_repos: [Ucas.Repo],
   generators: [timestamp_type: :utc_datetime]
 
+# Index course study options from Postgres into Typesense on boot when the
+# collection is missing or empty. Disable to manage indexing out-of-band
+# (e.g. via a deploy step running `mix ucas.search.reindex`).
+config :ucas, search_bootstrap: true
+
 # Configure the endpoint
 config :ucas, UcasWeb.Endpoint,
   url: [host: "localhost"],
@@ -35,6 +40,15 @@ config :phoenix_live_view,
 # For production it's recommended to configure a different adapter
 # at the `config/runtime.exs`.
 config :ucas, Ucas.Mailer, adapter: Swoosh.Adapters.Local
+
+# Configure the Typesense connection used by `ex_typesense`.
+# The local instance is provided by `docker-compose.yml`; production
+# overrides these values from environment variables in `runtime.exs`.
+config :open_api_typesense,
+  api_key: "xyz",
+  host: "localhost",
+  port: 8108,
+  scheme: "http"
 
 # Configure esbuild (the version is required)
 config :esbuild,

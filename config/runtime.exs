@@ -73,6 +73,12 @@ if config_env() == :prod do
 
   config :ucas, :dns_cluster_query, System.get_env("DNS_CLUSTER_QUERY")
 
+  config :open_api_typesense,
+    api_key: System.get_env("TYPESENSE_API_KEY") || "xyz",
+    host: System.get_env("TYPESENSE_HOST") || "localhost",
+    port: String.to_integer(System.get_env("TYPESENSE_PORT") || "8108"),
+    scheme: System.get_env("TYPESENSE_SCHEME") || "http"
+
   config :ucas, UcasWeb.Endpoint,
     url: [host: host, port: 443, scheme: "https"],
     http: [

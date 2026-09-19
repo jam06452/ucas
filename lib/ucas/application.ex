@@ -12,8 +12,8 @@ defmodule Ucas.Application do
       Ucas.Repo,
       {DNSCluster, query: Application.get_env(:ucas, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: Ucas.PubSub},
-      # Start a worker by calling: Ucas.Worker.start_link(arg)
-      # {Ucas.Worker, arg},
+      # Populate Typesense from Postgres when the collection is missing/empty.
+      Ucas.Search.Bootstrap,
       # Start to serve requests, typically the last entry
       UcasWeb.Endpoint
     ]
