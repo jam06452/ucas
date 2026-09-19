@@ -91,6 +91,23 @@
   --noise: 0;
 }
 
+/* Brand palette, matching the homepage (warm charcoal + salmon accent). */
+@theme {
+  --color-brand-base: #1c1c1c;
+  --color-brand-surface: #242424;
+  --color-brand-elevated: #333333;
+  --color-brand-light: #e3e3dc;
+  --color-brand-muted: #a8a8a0;
+  --color-brand-subtle: #6f6f68;
+  --color-brand-border: #333333;
+  --color-brand-border-hover: #3d3d3d;
+  --color-brand-border-focus: #f06e53;
+  --color-brand-accent: #f06e53;
+  --color-brand-accent-hover: #f58a72;
+  --color-brand-cream: #d8d6c7;
+  --color-brand-cream-hover: #c8c6b7;
+}
+
 /* Add variants based on LiveView classes */
 @custom-variant phx-click-loading (.phx-click-loading&, .phx-click-loading &);
 @custom-variant phx-submit-loading (.phx-submit-loading&, .phx-submit-loading &);
