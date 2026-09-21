@@ -28,6 +28,7 @@ defmodule UcasWeb.CoreComponents do
   """
   use Phoenix.Component
   use Gettext, backend: UcasWeb.Gettext
+  use UcasWeb, :verified_routes
 
   alias Phoenix.LiveView.JS
 
@@ -501,5 +502,70 @@ defmodule UcasWeb.CoreComponents do
   """
   def translate_errors(errors, field) when is_list(errors) do
     for {^field, {msg, opts}} <- errors, do: translate_error({msg, opts})
+  end
+
+
+@doc """
+  Renders the main navigation bar.
+
+  ## Examples
+
+      <.navbar current_user={@current_user} />
+  """
+  attr :current_user, :map, default: nil, doc: "the current authenticated user"
+
+  def navbar(assigns) do
+    ~H"""
+    <nav class="w-full border-b border-[#333333]/60 px-6 py-4 bg-[#1c1c1c] text-[#e3e3dc] font-sans">
+      <div class="max-w-6xl mx-auto flex items-center justify-between">
+        <!-- Logo -->
+        <.link navigate={~p"/"} class="font-serif text-2xl font-normal tracking-tight hover:opacity-90 transition-opacity">
+          a <span class="italic text-[#f06e53] font-light">calmer</span> <span class="font-normal">UCAS</span>
+        </.link>
+
+        <!-- Navigation Links -->
+        <div class="hidden md:flex items-center gap-8 text-sm font-medium">
+          <.link navigate={~p"/search?academic_year[]=2027"} class="hover:text-[#f06e53] transition-colors duration-200">
+            Courses
+          </.link>
+          <.link navigate={~p"/search"} class="hover:text-[#f06e53] transition-colors duration-200">
+            Universities
+          </.link>
+          <.link navigate={~p"/"} class="hover:text-[#f06e53] transition-colors duration-200">
+            About
+          </.link>
+        </div>
+
+        <!-- Action / Auth Links -->
+        <div class="hidden md:flex items-center gap-4">
+          <%= if @current_user do %>
+            <span class="text-xs text-gray-400">{@current_user.email}</span>
+            <.link 
+              navigate={~p"/users/settings"} 
+              class="bg-[#333333] hover:bg-[#3d3d3d] text-[#e3e3dc] font-medium px-4 py-2 rounded-xl transition-colors duration-200 text-sm"
+            >
+              Settings
+            </.link>
+          <% else %>
+            <.link 
+              navigate={~p"/search?academic_year[]=2027"} 
+              class="bg-[#333333] hover:bg-[#3d3d3d] text-[#e3e3dc] font-medium px-4 py-2 rounded-xl transition-colors duration-200 text-sm"
+            >
+              Get Started
+            </.link>
+          <% end %>
+        </div>
+
+        <!-- Mobile Menu Toggle Button -->
+        <button 
+          type="button" 
+          class="md:hidden text-[#e3e3dc] hover:text-[#f06e53] focus:outline-none" 
+          aria-label={gettext("Toggle menu")}
+        >
+          <.icon name="hero-bars-3" class="size-6" />
+        </button>
+      </div>
+    </nav>
+    """
   end
 end

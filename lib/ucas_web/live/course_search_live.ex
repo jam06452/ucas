@@ -480,6 +480,7 @@ defmodule UcasWeb.CourseSearchLive do
   @impl true
   def render(assigns) do
     ~H"""
+      <.navbar current_user={assigns[:current_user]} />
     <div
       id="course-search-page"
       phx-hook="ScrollToTop"
@@ -609,32 +610,32 @@ defmodule UcasWeb.CourseSearchLive do
       <h3 class="text-sm font-medium text-brand-light mb-3">UCAS Calculator</h3>
 
       <form
-        id="ucas-calculator-form"
-        phx-change="convert"
-        phx-submit="convert"
-        phx-debounce="200"
-        class="flex items-center gap-2"
-      >
-        <input
-          id="ucas-input"
-          type="text"
-          name="calc"
-          value={@input}
-          autocomplete="off"
-          placeholder="A*A*A* or 192"
-          aria-label="A-level grades or UCAS points"
-          class="flex-1 min-w-0 bg-brand-elevated border border-brand-border rounded-xl px-3 py-2 text-sm text-center text-brand-light placeholder:text-brand-subtle focus:outline-none focus:border-brand-border-focus focus:ring-1 focus:ring-brand-border-focus transition-colors"
-        />
+  id="ucas-calculator-form"
+  phx-change="convert"
+  phx-submit="convert"
+  phx-debounce="200"
+  class="flex items-center gap-2"
+>
+  <input
+    id="ucas-input"
+    type="text"
+    name="calc"
+    value={@input}
+    autocomplete="off"
+    placeholder="A*A*A* or 192"
+    aria-label="A-level grades or UCAS points"
+    class="flex-1 min-w-0 bg-brand-elevated border border-brand-border rounded-xl px-3 py-2 text-sm text-center text-brand-light placeholder:text-brand-subtle focus:outline-none focus:border-brand-border-focus focus:ring-1 focus:ring-brand-border-focus transition-colors"
+  />
 
-        <.icon name="hero-arrow-right" class="h-4 w-4 shrink-0 text-brand-muted" />
+  <.icon name="hero-arrow-right" class="h-4 w-4 shrink-0 text-brand-muted" />
 
-        <div
-          id="ucas-result"
-          class="flex-1 min-w-0 bg-brand-base border border-brand-border rounded-xl px-3 py-2 text-sm text-center text-brand-light"
-        >
-          {@result}
-        </div>
-      </form>
+  <div
+    id="ucas-result"
+    class="flex-1 min-w-0 min-h-[38px] flex items-center justify-center bg-brand-base border border-brand-border rounded-xl px-3 py-2 text-sm text-center text-brand-light"
+  >
+    {@result}
+  </div>
+</form>
 
       <p class="text-[11px] text-brand-subtle mt-2 text-center">
         {if @result_label == "", do: "Type grades or points to convert.", else: @result_label}
