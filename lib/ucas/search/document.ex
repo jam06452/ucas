@@ -24,6 +24,10 @@ defmodule Ucas.Search.Document do
   # "96 - 112 UCAS Tariff points".
   @tariff_regex ~r/(\d+)\s*-\s*(\d+)\s*UCAS Tariff points/i
 
+  # Matches a free-text duration, capturing an optional second bound and the
+  # unit, e.g. "3 years", "12 months" or "3 - 4 years".
+  @duration_regex ~r/(\d+(?:\.\d+)?)\s*(?:-\s*(\d+(?:\.\d+)?)\s*)?(year|month|week|day)s?/i
+
   @doc "Typesense collection name."
   @spec collection_name() :: String.t()
   def collection_name, do: @collection
@@ -46,6 +50,9 @@ defmodule Ucas.Search.Document do
         # Numeric range filter, parsed from `entry_requirements`.
         %{name: "tariff_points_min", type: "int32", optional: true},
         %{name: "tariff_points_max", type: "int32", optional: true},
+        # Numeric range filter, parsed from `duration` and normalized to months.
+        %{name: "duration_months_min", type: "int32", optional: true},
+        %{name: "duration_months_max", type: "int32", optional: true},
         # Display-only fields.
         %{name: "duration", type: "string", optional: true},
         %{name: "start_date", type: "string", optional: true},
@@ -61,6 +68,7 @@ defmodule Ucas.Search.Document do
     flatten_query()
     |> Repo.all()
     |> Enum.map(&put_tariff/1)
+    |> Enum.map(&put_duration/1)
     |> Enum.map(&drop_nils/1)
   end
 
@@ -114,6 +122,50 @@ defmodule Ucas.Search.Document do
   end
 
   defp put_tariff(document), do: document
+
+  # Converts the free-text `duration` into a month range so it can be
+  # range-filtered in Typesense. Ranges like "3 - 4 years" yield a min/max so
+  # the filter can match by overlap, mirroring the tariff points range.
+  # Documents without a parseable duration won't match a duration filter.
+  defp put_duration(%{duration: duration} = document) when is_binary(duration) do
+    case Regex.run(@duration_regex, duration) do
+      [_, min, max, unit] ->
+        min_months = months_for(min, unit)
+        max_months = if max == "", do: min_months, else: months_for(max, unit)
+
+        if is_integer(min_months) and is_integer(max_months) do
+          Map.merge(document, %{
+            duration_months_min: min_months,
+            duration_months_max: max(min_months, max_months)
+          })
+        else
+          document
+        end
+
+      _ ->
+        document
+    end
+  end
+
+  defp put_duration(document), do: document
+
+  defp months_for(value, unit) do
+    case Float.parse(value) do
+      {number, _rest} -> round(to_months(number, unit))
+      :error -> nil
+    end
+  end
+
+  # Normalizes every supported unit to whole months, using 52 weeks / 365 days
+  # as the calendar approximation.
+  defp to_months(number, unit) do
+    case String.downcase(unit) do
+      "year" -> number * 12
+      "month" -> number
+      "week" -> number * 12 / 52
+      "day" -> number * 12 / 365
+    end
+  end
 
   # Typesense rejects `null` for string fields, so optional fields that are
   # absent in Postgres are omitted from the document entirely.

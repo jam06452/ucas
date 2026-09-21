@@ -25,6 +25,7 @@ defmodule Ucas.Search.Query do
   @num_typos "2,2,0,0"
   @facets ~w(provider_name qualification_name study_mode_name academic_year campus_name)
   @tariff_field "tariff_points"
+  @duration_field "duration_months"
   @default_per_page 20
   @default_sort "_text_match:desc,course_name:asc"
 
@@ -126,6 +127,9 @@ defmodule Ucas.Search.Query do
   `%{min: integer, max: integer}`. It matches documents whose own tariff range
   overlaps the selection, e.g. `%{min: 96, max: 112}` matches a course asking
   for "104 - 120 UCAS Tariff points".
+
+  A course duration range, in months, may be supplied under the
+  `#{@duration_field}` key in the same shape and matches by overlap too.
   """
   @spec build_filter_by(map()) :: String.t() | nil
   def build_filter_by(filters) when is_map(filters) do
@@ -137,7 +141,11 @@ defmodule Ucas.Search.Query do
         "#{field}:=[#{Enum.map_join(values, ", ", &escape_value/1)}]"
       end)
 
-    case facet_clauses ++ tariff_clauses(Map.get(filters, @tariff_field)) do
+    range_clauses =
+      tariff_clauses(Map.get(filters, @tariff_field)) ++
+        duration_clauses(Map.get(filters, @duration_field))
+
+    case facet_clauses ++ range_clauses do
       [] -> nil
       clauses -> Enum.join(clauses, " && ")
     end
@@ -148,6 +156,12 @@ defmodule Ucas.Search.Query do
   end
 
   defp tariff_clauses(_range), do: []
+
+  defp duration_clauses(%{min: min, max: max}) when is_integer(min) and is_integer(max) do
+    ["duration_months_min:<=#{max}", "duration_months_max:>=#{min}"]
+  end
+
+  defp duration_clauses(_range), do: []
 
   @doc false
   @spec escape_value(term()) :: String.t()

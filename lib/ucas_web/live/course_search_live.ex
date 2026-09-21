@@ -25,6 +25,11 @@ defmodule UcasWeb.CourseSearchLive do
   @tariff_min 0
   @tariff_max 240
 
+  # Bounds of the course duration range slider, in months. The dataset's
+  # durations run from a couple of days up to 11 years.
+  @duration_min 0
+  @duration_max 132
+
   # ---------------------------------------------------------------------
   # Lifecycle & State (URL-Driven)
   # ---------------------------------------------------------------------
@@ -55,6 +60,7 @@ defmodule UcasWeb.CourseSearchLive do
     page = parse_page(params)
     filters = parse_filters(params)
     tariff = parse_tariff(params)
+    duration = parse_duration(params)
 
     socket =
       socket
@@ -63,7 +69,8 @@ defmodule UcasWeb.CourseSearchLive do
         search_form: to_form(%{"q" => q}),
         page: page,
         filters: filters,
-        tariff: tariff
+        tariff: tariff,
+        duration: duration
       )
       |> run_search()
 
@@ -76,19 +83,27 @@ defmodule UcasWeb.CourseSearchLive do
 
   @impl true
   def handle_event("search", %{"q" => q}, socket) do
-    path = build_path(q, socket.assigns.filters, socket.assigns.tariff, 1)
+    path =
+      build_path(q, socket.assigns.filters, socket.assigns.tariff, socket.assigns.duration, 1)
+
     {:noreply, push_patch(socket, to: path)}
   end
 
   def handle_event("toggle-filter", %{"field" => field, "option" => value}, socket) do
     filters = toggle_filter(socket.assigns.filters, field, value)
-    path = build_path(socket.assigns.q, filters, socket.assigns.tariff, 1)
+
+    path =
+      build_path(socket.assigns.q, filters, socket.assigns.tariff, socket.assigns.duration, 1)
+
     {:noreply, push_patch(socket, to: path)}
   end
 
   def handle_event("clear-filter", %{"field" => field}, socket) do
     filters = Map.delete(socket.assigns.filters, field)
-    path = build_path(socket.assigns.q, filters, socket.assigns.tariff, 1)
+
+    path =
+      build_path(socket.assigns.q, filters, socket.assigns.tariff, socket.assigns.duration, 1)
+
     {:noreply, push_patch(socket, to: path)}
   end
 
@@ -101,17 +116,55 @@ defmodule UcasWeb.CourseSearchLive do
         parse_int(params["tariff_max"], current_max)
       )
 
-    path = build_path(socket.assigns.q, socket.assigns.filters, tariff, 1)
+    path =
+      build_path(socket.assigns.q, socket.assigns.filters, tariff, socket.assigns.duration, 1)
+
     {:noreply, push_patch(socket, to: path)}
   end
 
   def handle_event("clear-tariff", _params, socket) do
-    path = build_path(socket.assigns.q, socket.assigns.filters, default_tariff(), 1)
+    path =
+      build_path(
+        socket.assigns.q,
+        socket.assigns.filters,
+        default_tariff(),
+        socket.assigns.duration,
+        1
+      )
+
+    {:noreply, push_patch(socket, to: path)}
+  end
+
+  def handle_event("duration", params, socket) do
+    {current_min, current_max} = socket.assigns.duration
+
+    duration =
+      normalize_duration(
+        parse_int(params["duration_min"], current_min),
+        parse_int(params["duration_max"], current_max)
+      )
+
+    path =
+      build_path(socket.assigns.q, socket.assigns.filters, socket.assigns.tariff, duration, 1)
+
+    {:noreply, push_patch(socket, to: path)}
+  end
+
+  def handle_event("clear-duration", _params, socket) do
+    path =
+      build_path(
+        socket.assigns.q,
+        socket.assigns.filters,
+        socket.assigns.tariff,
+        default_duration(),
+        1
+      )
+
     {:noreply, push_patch(socket, to: path)}
   end
 
   def handle_event("clear-all", _params, socket) do
-    path = build_path("", %{}, default_tariff(), 1)
+    path = build_path("", %{}, default_tariff(), default_duration(), 1)
     {:noreply, push_patch(socket, to: path)}
   end
 
@@ -121,6 +174,7 @@ defmodule UcasWeb.CourseSearchLive do
         socket.assigns.q,
         socket.assigns.filters,
         socket.assigns.tariff,
+        socket.assigns.duration,
         String.to_integer(page)
       )
 
@@ -139,12 +193,13 @@ defmodule UcasWeb.CourseSearchLive do
   # ---------------------------------------------------------------------
 
   defp run_search(socket) do
-    %{q: q, filters: filters, page: page, per_page: per_page, tariff: tariff} = socket.assigns
+    %{q: q, filters: filters, page: page, per_page: per_page, tariff: tariff, duration: duration} =
+      socket.assigns
 
     query =
       Query.new(
         q: q,
-        filters: tariff_filter(filters, tariff),
+        filters: filters |> tariff_filter(tariff) |> duration_filter(duration),
         page: page,
         per_page: per_page
       )
@@ -166,7 +221,7 @@ defmodule UcasWeb.CourseSearchLive do
         # current result set (e.g. after a filter shrinks the total). Snap
         # back to the last valid page instead of showing a false empty state.
         if page > total_pages do
-          path = build_path(q, filters, tariff, total_pages)
+          path = build_path(q, filters, tariff, duration, total_pages)
           push_patch(socket, to: path)
         else
           socket
@@ -189,13 +244,14 @@ defmodule UcasWeb.CourseSearchLive do
   # URL & Params Helpers
   # ---------------------------------------------------------------------
 
-  defp build_path(q, filters, tariff, page) do
+  defp build_path(q, filters, tariff, duration, page) do
     filters_map = Enum.into(filters, %{}, fn {k, v} -> {k, MapSet.to_list(v)} end)
 
     params =
       %{"q" => q, "page" => page}
       |> Map.merge(filters_map)
       |> Map.merge(tariff_params(tariff))
+      |> Map.merge(duration_params(duration))
       |> Enum.reject(fn
         {"q", ""} -> true
         {"page", 1} -> true
@@ -216,6 +272,13 @@ defmodule UcasWeb.CourseSearchLive do
     |> maybe_put("tariff_max", max, max < @tariff_max)
   end
 
+  # Same idea as the tariff slider: a fully-open duration range is omitted.
+  defp duration_params({min, max}) do
+    %{}
+    |> maybe_put("duration_min", min, min > @duration_min)
+    |> maybe_put("duration_max", max, max < @duration_max)
+  end
+
   defp maybe_put(params, key, value, true), do: Map.put(params, key, value)
   defp maybe_put(params, _key, _value, false), do: params
 
@@ -223,6 +286,13 @@ defmodule UcasWeb.CourseSearchLive do
     normalize_tariff(
       parse_int(params["tariff_min"], @tariff_min),
       parse_int(params["tariff_max"], @tariff_max)
+    )
+  end
+
+  defp parse_duration(params) do
+    normalize_duration(
+      parse_int(params["duration_min"], @duration_min),
+      parse_int(params["duration_max"], @duration_max)
     )
   end
 
@@ -249,6 +319,18 @@ defmodule UcasWeb.CourseSearchLive do
   defp default_tariff, do: {@tariff_min, @tariff_max}
 
   defp tariff_bounds, do: {@tariff_min, @tariff_max}
+
+  # Clamps rather than swaps, matching the tariff slider.
+  defp normalize_duration(min, max) do
+    min = min |> max(@duration_min) |> min(@duration_max)
+    max = max |> min(@duration_max) |> max(min)
+
+    {min, max}
+  end
+
+  defp default_duration, do: {@duration_min, @duration_max}
+
+  defp duration_bounds, do: {@duration_min, @duration_max}
 
   defp parse_filters(params) do
     Enum.reduce(@known_facets, %{}, fn field, acc ->
@@ -330,14 +412,20 @@ defmodule UcasWeb.CourseSearchLive do
   defp facet_title("academic_year"), do: "Academic year"
   defp facet_title("campus_name"), do: "Campus"
 
-  defp active_filter_count(filters, tariff) do
+  defp active_filter_count(filters, tariff, duration) do
     facet_count =
       Enum.reduce(filters, 0, fn {_field, values}, acc -> acc + MapSet.size(values) end)
 
-    facet_count + if(tariff_active?(tariff), do: 1, else: 0)
+    range_count =
+      if(tariff_active?(tariff), do: 1, else: 0) +
+        if(duration_active?(duration), do: 1, else: 0)
+
+    facet_count + range_count
   end
 
   defp tariff_active?({min, max}), do: min > @tariff_min or max < @tariff_max
+
+  defp duration_active?({min, max}), do: min > @duration_min or max < @duration_max
 
   defp tariff_filter(filters, tariff) do
     if tariff_active?(tariff) do
@@ -348,14 +436,36 @@ defmodule UcasWeb.CourseSearchLive do
     end
   end
 
+  defp duration_filter(filters, duration) do
+    if duration_active?(duration) do
+      {min, max} = duration
+      Map.put(filters, "duration_months", %{min: min, max: max})
+    else
+      filters
+    end
+  end
+
   defp tariff_label({min, max}) do
     "#{min} - #{max}#{if max >= @tariff_max, do: "+"} points"
   end
 
-  # Positions the highlighted segment of the slider track between the two
+  defp tariff_slider_label({min, max}) do
+    "#{min} - #{max}#{if max >= @tariff_max, do: "+"} Points"
+  end
+
+  defp duration_label({min, max}) do
+    "#{duration_text(min)} - #{duration_text(max)}#{if max >= @duration_max, do: "+"} years"
+  end
+
+  # Renders whole months as years where possible, e.g. 36 -> "3", 18 -> "1.5".
+  defp duration_text(0), do: "0"
+  defp duration_text(months) when rem(months, 12) == 0, do: Integer.to_string(div(months, 12))
+  defp duration_text(months), do: :erlang.float_to_binary(months / 12, decimals: 1)
+
+  # Positions the highlighted segment of a slider track between the two
   # handles, as percentages of the full range. Used only for the initial
   # server-rendered position; the JS hook takes over from there.
-  defp tariff_fill_style(min, max, bounds_min, bounds_max) do
+  defp range_fill_style(min, max, bounds_min, bounds_max) do
     span = bounds_max - bounds_min
     left = (min - bounds_min) / span * 100
     width = (max - min) / span * 100
@@ -380,6 +490,7 @@ defmodule UcasWeb.CourseSearchLive do
           filters={@filters}
           facets={@facets}
           tariff={@tariff}
+          duration={@duration}
           input={@input}
           result={@result}
           result_label={@result_label}
@@ -387,7 +498,7 @@ defmodule UcasWeb.CourseSearchLive do
 
         <div class="flex-1 min-w-0">
           <.search_bar form={@search_form} q={@q} />
-          <.active_filters filters={@filters} tariff={@tariff} found={@found} />
+          <.active_filters filters={@filters} tariff={@tariff} duration={@duration} found={@found} />
 
           <div
             :if={@error}
@@ -421,7 +532,37 @@ defmodule UcasWeb.CourseSearchLive do
 
       <.calculator input={@input} result={@result} result_label={@result_label} />
 
-      <.tariff_slider tariff={@tariff} bounds={tariff_bounds()} />
+      <.range_slider
+        id="tariff-slider"
+        title="UCAS Tariff Points"
+        values={@tariff}
+        bounds={tariff_bounds()}
+        clear_event="clear-tariff"
+        change_event="tariff"
+        min_name="tariff_min"
+        max_name="tariff_max"
+        min_aria="Minimum UCAS tariff points"
+        max_aria="Maximum UCAS tariff points"
+        label={tariff_slider_label(@tariff)}
+        unit="Points"
+      />
+
+      <.range_slider
+        id="duration-slider"
+        title="Course Duration"
+        values={@duration}
+        bounds={duration_bounds()}
+        clear_event="clear-duration"
+        change_event="duration"
+        min_name="duration_min"
+        max_name="duration_max"
+        min_aria="Minimum course duration"
+        max_aria="Maximum course duration"
+        label={duration_label(@duration)}
+        unit="years"
+        scale={12}
+        decimals={1}
+      />
 
       <.facet_checkboxes
         field="provider_name"
@@ -546,12 +687,15 @@ defmodule UcasWeb.CourseSearchLive do
   end
 
   defp active_filters(assigns) do
-    assigns = assign(assigns, filter_count: active_filter_count(assigns.filters, assigns.tariff))
+    assigns =
+      assign(assigns,
+        filter_count: active_filter_count(assigns.filters, assigns.tariff, assigns.duration)
+      )
 
     ~H"""
     <div>
       <div
-        :if={map_size(@filters) > 0 or tariff_active?(@tariff)}
+        :if={map_size(@filters) > 0 or tariff_active?(@tariff) or duration_active?(@duration)}
         class="flex flex-wrap items-center gap-2 mb-4"
       >
         <span class="text-xs text-brand-muted">Filters:</span>
@@ -574,6 +718,15 @@ defmodule UcasWeb.CourseSearchLive do
           class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs bg-brand-elevated border border-brand-border text-brand-light hover:border-brand-border-focus focus:outline-none focus:ring-2 focus:ring-brand-accent transition-colors"
         >
           {tariff_label(@tariff)}
+          <.icon name="hero-x-mark" class="h-3 w-3" />
+        </button>
+        <button
+          :if={duration_active?(@duration)}
+          type="button"
+          phx-click="clear-duration"
+          class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs bg-brand-elevated border border-brand-border text-brand-light hover:border-brand-border-focus focus:outline-none focus:ring-2 focus:ring-brand-accent transition-colors"
+        >
+          {duration_label(@duration)}
           <.icon name="hero-x-mark" class="h-3 w-3" />
         </button>
         <button
@@ -705,79 +858,101 @@ defmodule UcasWeb.CourseSearchLive do
   end
 
   # ---------------------------------------------------------------------
-  # Tariff Slider
+  # Range Sliders (UCAS tariff & course duration)
   #
-  # Dragging used to be driven entirely by `phx-change`, which fired a
-  # server round trip (and a morphdom patch) on every single pixel of drag.
-  # That's what made the slider feel laggy and unresponsive. The
-  # `TariffSlider` JS hook (assets/js/tariff_slider.js) now handles dragging
-  # fully client-side — instant visual feedback, zero server calls — and
-  # only pushes an event to the server once, on release. See the comment at
-  # the bottom of this file for how to wire the hook into app.js.
+  # Dragging used to be driven entirely by `phx-change`, which fired a server
+  # round trip (and a morphdom patch) on every single pixel of drag. That's
+  # what made the slider feel laggy and unresponsive. The `RangeSlider` JS
+  # hook (assets/js/range_slider.js) now handles dragging fully client-side —
+  # instant visual feedback, zero server calls — and only pushes an event to
+  # the server once, on release. The hook is generic: the event name, input
+  # names and label formatting are all supplied as attributes below.
   # ---------------------------------------------------------------------
 
-  attr :tariff, :any, required: true
+  attr :id, :string, required: true
+  attr :title, :string, required: true
+  attr :values, :any, required: true
   attr :bounds, :any, required: true
+  attr :clear_event, :string, required: true
+  attr :change_event, :string, required: true
+  attr :min_name, :string, required: true
+  attr :max_name, :string, required: true
+  attr :min_aria, :string, required: true
+  attr :max_aria, :string, required: true
+  attr :label, :string, required: true
+  attr :unit, :string, required: true
+  attr :scale, :integer, default: 1
+  attr :decimals, :integer, default: 0
 
-  defp tariff_slider(assigns) do
-    {min, max} = assigns.tariff
+  defp range_slider(assigns) do
+    {min, max} = assigns.values
     {bounds_min, bounds_max} = assigns.bounds
 
     assigns =
-      assign(assigns, min: min, max: max, bounds_min: bounds_min, bounds_max: bounds_max)
+      assign(assigns,
+        min: min,
+        max: max,
+        bounds_min: bounds_min,
+        bounds_max: bounds_max,
+        active?: min > bounds_min or max < bounds_max
+      )
 
     ~H"""
-    <div class="pb-6 mb-6 border-b border-brand-border last:border-b-0 last:pb-0 last:mb-0">
+    <div
+      id={@id}
+      phx-hook="RangeSlider"
+      data-event={@change_event}
+      data-bounds-min={@bounds_min}
+      data-bounds-max={@bounds_max}
+      data-unit={@unit}
+      data-scale={@scale}
+      data-decimals={@decimals}
+      class="pb-6 mb-6 border-b border-brand-border last:border-b-0 last:pb-0 last:mb-0"
+    >
       <div class="flex items-center justify-between mb-3">
-        <h3 class="text-sm font-medium text-brand-light">UCAS Tariff Points</h3>
+        <h3 class="text-sm font-medium text-brand-light">{@title}</h3>
         <button
-          :if={@min > @bounds_min or @max < @bounds_max}
+          :if={@active?}
           type="button"
-          phx-click="clear-tariff"
+          phx-click={@clear_event}
           class="text-xs text-brand-accent hover:text-brand-accent-hover transition-colors focus:outline-none focus:underline"
         >
           Clear
         </button>
       </div>
 
-      <div
-        id="tariff-slider"
-        phx-hook="TariffSlider"
-        data-bounds-min={@bounds_min}
-        data-bounds-max={@bounds_max}
-        class="relative h-4 flex items-center"
-      >
+      <div class="relative h-4 flex items-center">
         <div class="absolute left-0 right-0 top-1/2 -translate-y-1/2 h-1.5 rounded-full bg-brand-elevated">
         </div>
         <div
           data-role="fill"
           class="absolute top-1/2 -translate-y-1/2 h-1.5 rounded-full bg-brand-accent"
-          style={tariff_fill_style(@min, @max, @bounds_min, @bounds_max)}
+          style={range_fill_style(@min, @max, @bounds_min, @bounds_max)}
         >
         </div>
         <input
           type="range"
-          name="tariff_min"
+          data-role="min"
+          name={@min_name}
           min={@bounds_min}
           max={@bounds_max}
           value={@min}
-          aria-label="Minimum UCAS tariff points"
-          class={tariff_input_classes(if(@min >= @max, do: "z-20", else: "z-10"))}
+          aria-label={@min_aria}
+          class={range_input_classes(if(@min >= @max, do: "z-20", else: "z-10"))}
         />
         <input
           type="range"
-          name="tariff_max"
+          data-role="max"
+          name={@max_name}
           min={@bounds_min}
           max={@bounds_max}
           value={@max}
-          aria-label="Maximum UCAS tariff points"
-          class={tariff_input_classes("z-10")}
+          aria-label={@max_aria}
+          class={range_input_classes("z-10")}
         />
       </div>
 
-      <p data-role="tariff-label" class="mt-3 text-xs text-brand-muted">
-        {@min} - {@max}{if @max >= @bounds_max, do: "+"} Points
-      </p>
+      <p data-role="range-label" class="mt-3 text-xs text-brand-muted">{@label}</p>
     </div>
     """
   end
@@ -786,7 +961,7 @@ defmodule UcasWeb.CourseSearchLive do
   # is disabled on the inputs and re-enabled on the thumbs so each handle stays
   # independently draggable; the z-index swap keeps the lower handle grabbable
   # when both handles meet.
-  defp tariff_input_classes(z_index) do
+  defp range_input_classes(z_index) do
     [
       "absolute inset-0 h-4 w-full appearance-none bg-transparent pointer-events-none",
       "[&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-brand-base [&::-webkit-slider-thumb]:bg-brand-accent [&::-webkit-slider-thumb]:cursor-grab [&::-webkit-slider-thumb]:transition-transform [&::-webkit-slider-thumb]:hover:scale-110",
