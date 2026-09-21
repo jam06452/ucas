@@ -24,14 +24,14 @@ import {Socket} from "phoenix"
 import {LiveSocket} from "phoenix_live_view"
 import {hooks as colocatedHooks} from "phoenix-colocated/ucas"
 import topbar from "../vendor/topbar"
-import TariffSlider from "./tariff_slider"
+import RangeSlider from "./range_slider"
 import ScrollToTop from "./scroll_to_top"
 
 const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content")
 const liveSocket = new LiveSocket("/live", Socket, {
   longPollFallbackMs: 2500,
   params: {_csrf_token: csrfToken},
-  hooks: {...colocatedHooks, TariffSlider, ScrollToTop},
+  hooks: {...colocatedHooks, RangeSlider, ScrollToTop},
 })
 
 // Show progress bar on live navigation and form submits

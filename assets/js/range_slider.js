@@ -1,25 +1,33 @@
-// Client-side behaviour for the UCAS tariff range slider.
+// Client-side behaviour for the dual-handle range sliders (UCAS tariff and
+// course duration).
 //
 // Two native range inputs are stacked over a shared track. Dragging is handled
 // entirely here so the handles track the pointer at 60fps with no server round
 // trips; the LiveView is only notified once, when the user releases a handle.
-// The server's `handle_event("tariff", ...)` expects `tariff_min`/`tariff_max`.
+// The server event and input names are read from data attributes, so the same
+// hook backs every range slider on the page.
 export default {
   mounted() {
-    this.minInput = this.el.querySelector('input[name="tariff_min"]')
-    this.maxInput = this.el.querySelector('input[name="tariff_max"]')
+    this.minInput = this.el.querySelector('input[data-role="min"]')
+    this.maxInput = this.el.querySelector('input[data-role="max"]')
     this.fill = this.el.querySelector('[data-role="fill"]')
-    this.label = this.el.parentElement.querySelector('[data-role="tariff-label"]')
+    this.label = this.el.querySelector('[data-role="range-label"]')
 
-    this.boundsMin = parseInt(this.el.dataset.boundsMin, 10)
-    this.boundsMax = parseInt(this.el.dataset.boundsMax, 10)
+    this.event = this.el.dataset.event
+    this.boundsMin = parseFloat(this.el.dataset.boundsMin)
+    this.boundsMax = parseFloat(this.el.dataset.boundsMax)
+    // Display-only: raw values are scaled and formatted for the label, e.g.
+    // tariff points (scale 1) or months rendered as years (scale 12).
+    this.scale = parseFloat(this.el.dataset.scale || "1")
+    this.decimals = parseInt(this.el.dataset.decimals || "0", 10)
+    this.unit = this.el.dataset.unit || ""
 
     this.onInput = () => this.render()
     this.onChange = () => {
       this.render()
-      this.pushEvent("tariff", {
-        tariff_min: this.minInput.value,
-        tariff_max: this.maxInput.value,
+      this.pushEvent(this.event, {
+        [this.minInput.name]: this.minInput.value,
+        [this.maxInput.name]: this.maxInput.value,
       })
     }
 
@@ -45,8 +53,8 @@ export default {
   },
 
   render() {
-    let min = parseInt(this.minInput.value, 10)
-    let max = parseInt(this.maxInput.value, 10)
+    let min = parseFloat(this.minInput.value)
+    let max = parseFloat(this.maxInput.value)
 
     // Keep the handles from crossing; the server normalizes the same way.
     if (min > max) {
@@ -72,7 +80,11 @@ export default {
 
     if (this.label) {
       const plus = max >= this.boundsMax ? "+" : ""
-      this.label.textContent = `${min} - ${max}${plus} Points`
+      this.label.textContent = `${this.format(min)} - ${this.format(max)}${plus} ${this.unit}`
     }
+  },
+
+  format(value) {
+    return (value / this.scale).toFixed(this.decimals).replace(/\.0$/, "")
   },
 }
