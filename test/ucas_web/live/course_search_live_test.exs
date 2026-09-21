@@ -47,12 +47,12 @@ defmodule UcasWeb.CourseSearchLiveTest do
 
     assert has_element?(
              view,
-             "input[phx-value-field=provider_name][phx-value-option='University of Oxford']"
+             "label[phx-value-field=provider_name][phx-value-option='University of Oxford']"
            )
 
     assert has_element?(
              view,
-             "input[phx-value-field=study_mode_name][phx-value-option=Full-time]"
+             "label[phx-value-field=study_mode_name][phx-value-option=Full-time]"
            )
 
     assert has_element?(view, "button[phx-value-field=academic_year][phx-value-option='2025/26']")
@@ -66,7 +66,7 @@ defmodule UcasWeb.CourseSearchLiveTest do
     # `value` property (a checkbox defaults to "on"), so facet controls must use
     # a different key or the real value is lost.
     refute html =~ "phx-value-value"
-    assert has_element?(view, "input[phx-value-option=Full-time]")
+    assert has_element?(view, "label[phx-value-option=Full-time]")
   end
 
   test "toggling a facet sends it as a filter", %{conn: conn} do
@@ -74,7 +74,7 @@ defmodule UcasWeb.CourseSearchLiveTest do
     {:ok, view, _html} = live(conn, ~p"/search")
 
     view
-    |> element("input[phx-value-field=study_mode_name][phx-value-option=Full-time]")
+    |> element("label[phx-value-field=study_mode_name][phx-value-option=Full-time]")
     |> render_click()
 
     assert FakeTypesenseClient.last_query()[:filter_by] == "study_mode_name:=[`Full-time`]"
@@ -102,7 +102,6 @@ defmodule UcasWeb.CourseSearchLiveTest do
 
     {:ok, view, _html} = live(conn, ~p"/search")
 
-    assert has_element?(view, "#facet-tariff_points")
     assert has_element?(view, "#tariff-slider")
     assert has_element?(view, "input[name=tariff_min][value='0']")
     assert has_element?(view, "input[name=tariff_max][value='240']")
@@ -113,9 +112,7 @@ defmodule UcasWeb.CourseSearchLiveTest do
 
     {:ok, view, _html} = live(conn, ~p"/search")
 
-    view
-    |> form("#tariff-form", tariff_min: "96", tariff_max: "112")
-    |> render_change()
+    view |> render_hook("tariff", %{"tariff_min" => "96", "tariff_max" => "112"})
 
     assert FakeTypesenseClient.last_query()[:filter_by] ==
              "tariff_points_min:<=112 && tariff_points_max:>=96"
@@ -139,10 +136,65 @@ defmodule UcasWeb.CourseSearchLiveTest do
     {:ok, view, _html} = live(conn, ~p"/search?tariff_min=96&tariff_max=112")
 
     view
-    |> element("#facet-tariff_points button[phx-click=clear-tariff]")
+    |> element("#tariff-slider button[phx-click=clear-tariff]")
     |> render_click()
 
     assert FakeTypesenseClient.last_query()[:filter_by] == nil
+  end
+
+  test "renders the duration slider at the full range", %{conn: conn} do
+    FakeTypesenseClient.set_search_response(%{found: 0})
+
+    {:ok, view, _html} = live(conn, ~p"/search")
+
+    assert has_element?(view, "#duration-slider")
+    assert has_element?(view, "input[name=duration_min][value='0']")
+    assert has_element?(view, "input[name=duration_max][value='132']")
+  end
+
+  test "dragging the duration slider filters by range", %{conn: conn} do
+    FakeTypesenseClient.set_search_response(%{found: 0})
+
+    {:ok, view, _html} = live(conn, ~p"/search")
+
+    view |> render_hook("duration", %{"duration_min" => "36", "duration_max" => "60"})
+
+    assert FakeTypesenseClient.last_query()[:filter_by] ==
+             "duration_months_min:<=60 && duration_months_max:>=36"
+  end
+
+  test "reads the duration range from the URL", %{conn: conn} do
+    FakeTypesenseClient.set_search_response(%{found: 0})
+
+    {:ok, view, _html} = live(conn, ~p"/search?duration_min=36&duration_max=60")
+
+    assert has_element?(view, "input[name=duration_min][value='36']")
+    assert has_element?(view, "input[name=duration_max][value='60']")
+
+    assert FakeTypesenseClient.last_query()[:filter_by] ==
+             "duration_months_min:<=60 && duration_months_max:>=36"
+  end
+
+  test "clearing the duration filter removes it", %{conn: conn} do
+    FakeTypesenseClient.set_search_response(%{found: 0})
+
+    {:ok, view, _html} = live(conn, ~p"/search?duration_min=36&duration_max=60")
+
+    view
+    |> element("#duration-slider button[phx-click=clear-duration]")
+    |> render_click()
+
+    assert FakeTypesenseClient.last_query()[:filter_by] == nil
+  end
+
+  test "duration and tariff ranges combine", %{conn: conn} do
+    FakeTypesenseClient.set_search_response(%{found: 0})
+
+    {:ok, _view, _html} =
+      live(conn, ~p"/search?tariff_min=96&tariff_max=112&duration_min=36&duration_max=60")
+
+    assert FakeTypesenseClient.last_query()[:filter_by] ==
+             "tariff_points_min:<=112 && tariff_points_max:>=96 && duration_months_min:<=60 && duration_months_max:>=36"
   end
 
   test "calculator converts grades into UCAS points", %{conn: conn} do

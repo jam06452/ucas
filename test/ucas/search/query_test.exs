@@ -100,6 +100,29 @@ defmodule Ucas.Search.QueryTest do
       assert Query.build_filter_by(%{"tariff_points" => %{min: 96}}) == nil
       assert Query.build_filter_by(%{"tariff_points" => nil}) == nil
     end
+
+    test "builds an overlap filter for a duration range" do
+      filters = %{"duration_months" => %{min: 36, max: 60}}
+
+      assert Query.build_filter_by(filters) ==
+               "duration_months_min:<=60 && duration_months_max:>=36"
+    end
+
+    test "combines a duration range with facet and tariff filters" do
+      filters = %{
+        "study_mode_name" => ["Full-time"],
+        "tariff_points" => %{min: 96, max: 112},
+        "duration_months" => %{min: 36, max: 60}
+      }
+
+      assert Query.build_filter_by(filters) ==
+               "study_mode_name:=[`Full-time`] && tariff_points_min:<=112 && tariff_points_max:>=96 && duration_months_min:<=60 && duration_months_max:>=36"
+    end
+
+    test "ignores an incomplete duration range" do
+      assert Query.build_filter_by(%{"duration_months" => %{max: 60}}) == nil
+      assert Query.build_filter_by(%{"duration_months" => nil}) == nil
+    end
   end
 
   describe "filter_by_excluding/2" do
