@@ -24,6 +24,17 @@ defmodule Ucas.Search.BootstrapTest do
     assert :create_collection in FakeTypesenseClient.calls()
   end
 
+  test "still indexes when a concurrent run already created the collection" do
+    FakeTypesenseClient.set_collection(:missing)
+
+    FakeTypesenseClient.fail_create_collection(
+      "A collection with name `course_study_options` already exists."
+    )
+
+    assert :ok = Bootstrap.ensure_indexed()
+    assert :import_documents in FakeTypesenseClient.calls()
+  end
+
   test "leaves a populated collection untouched" do
     FakeTypesenseClient.set_collection(20_000)
 

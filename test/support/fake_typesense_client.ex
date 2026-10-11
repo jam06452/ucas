@@ -35,6 +35,14 @@ defmodule Ucas.Search.FakeTypesenseClient do
   """
   def set_collection(state), do: GenServer.call(@name, {:set_collection, state})
 
+  @doc """
+  Makes the next `create_collection` calls fail with the given message, so
+  callers can exercise how a duplicate-collection error is handled. Pass `nil`
+  to stop failing.
+  """
+  def fail_create_collection(message),
+    do: GenServer.call(@name, {:fail_create_collection, message})
+
   @doc "Returns the query params of the most recent search request."
   def last_query, do: GenServer.call(@name, :last_query)
 
@@ -70,9 +78,18 @@ defmodule Ucas.Search.FakeTypesenseClient do
 
   @impl GenServer
   def init(_opts),
-    do:
-      {:ok,
-       %{response: @empty, last_query: nil, last_searches: [], collection: :missing, calls: []}}
+    do: {:ok, new_state()}
+
+  defp new_state do
+    %{
+      response: @empty,
+      last_query: nil,
+      last_searches: [],
+      collection: :missing,
+      create_error: nil,
+      calls: []
+    }
+  end
 
   @impl GenServer
   def handle_call({:set_response, response}, _from, state) do
@@ -83,6 +100,10 @@ defmodule Ucas.Search.FakeTypesenseClient do
     {:reply, :ok, %{state | collection: collection}}
   end
 
+  def handle_call({:fail_create_collection, message}, _from, state) do
+    {:reply, :ok, %{state | create_error: message}}
+  end
+
   def handle_call(:last_query, _from, state), do: {:reply, state.last_query, state}
 
   def handle_call(:last_searches, _from, state), do: {:reply, state.last_searches, state}
@@ -90,13 +111,12 @@ defmodule Ucas.Search.FakeTypesenseClient do
   def handle_call(:calls, _from, state), do: {:reply, Enum.reverse(state.calls), state}
 
   def handle_call(:reset, _from, _state) do
-    {:reply, :ok,
-     %{response: @empty, last_query: nil, last_searches: [], collection: :missing, calls: []}}
+    {:reply, :ok, new_state()}
   end
 
   def handle_call({:search, query}, _from, state) do
     result = to_search_result(state.response, query)
-    {:reply, {:ok, result}, %{state | last_query: query}}
+    {:reply, {:ok, result}, record(%{state | last_query: query}, :search_collection)}
   end
 
   def handle_call({:multi_search, body}, _from, state) do
@@ -118,8 +138,16 @@ defmodule Ucas.Search.FakeTypesenseClient do
   end
 
   def handle_call({:operation, :create_collection}, _from, state) do
-    reply = {:ok, %CollectionResponse{name: "course_study_options", num_documents: 0}}
-    {:reply, reply, %{record(state, :create_collection) | collection: 0}}
+    state = record(state, :create_collection)
+
+    case state.create_error do
+      nil ->
+        reply = {:ok, %CollectionResponse{name: "course_study_options", num_documents: 0}}
+        {:reply, reply, %{state | collection: 0}}
+
+      message ->
+        {:reply, {:error, %ApiResponse{message: message}}, state}
+    end
   end
 
   def handle_call({:operation, :delete_collection}, _from, state) do

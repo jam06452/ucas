@@ -9,6 +9,11 @@ defmodule Ucas.Search.Bootstrap do
   or run `mix ucas.search.reindex` to force a refresh (e.g. after a schema
   change).
 
+  The check-then-act is serialized in-process (`:global.trans/2`): the `Task`
+  is transient, so a crash restarts it, and without the lock a restarted copy
+  could race the still-running original and both try to create the collection.
+  `create_and_index/1` is idempotent, so a duplicate run is only wasteful.
+
   The work runs in a `Task` so it never blocks the supervision tree, and it
   never raises: a Typesense outage is logged rather than taking the app down.
   """
@@ -17,6 +22,8 @@ defmodule Ucas.Search.Bootstrap do
 
   alias Ucas.Search
   alias Ucas.Search.Document
+
+  @lock {__MODULE__, :ensure_indexed}
 
   def child_spec(opts) do
     %{
@@ -45,6 +52,15 @@ defmodule Ucas.Search.Bootstrap do
   """
   @spec ensure_indexed() :: :ok
   def ensure_indexed do
+    :global.trans(@lock, fn -> do_ensure_indexed() end, [node()])
+    :ok
+  rescue
+    error ->
+      Logger.error("Typesense bootstrap failed: #{Exception.message(error)}")
+      :ok
+  end
+
+  defp do_ensure_indexed do
     case ExTypesense.get_collection(Document.collection_name()) do
       {:ok, %{num_documents: count}} when is_integer(count) and count > 0 ->
         Logger.debug(fn -> "Typesense collection already has #{count} documents" end)
@@ -56,16 +72,12 @@ defmodule Ucas.Search.Bootstrap do
       {:error, _reason} ->
         create_and_index("collection is missing")
     end
-  rescue
-    error ->
-      Logger.error("Typesense bootstrap failed: #{Exception.message(error)}")
-      :ok
   end
 
   defp create_and_index(reason) do
     Logger.info("Indexing course study options from Postgres (#{reason})")
 
-    with {:ok, _collection} <- Search.create_collection(),
+    with {:ok, _collection} <- ensure_collection(),
          {:ok, count} <- Search.reindex() do
       Logger.info("Indexed #{count} course study options into Typesense")
       :ok
@@ -75,4 +87,20 @@ defmodule Ucas.Search.Bootstrap do
         :ok
     end
   end
+
+  # Typesense rejects a duplicate `create_collection` with 409 ("A collection
+  # with name `x` already exists"), which is the outcome we wanted anyway: a
+  # concurrent or previous run already created it. Treat that as success so a
+  # benign race doesn't abort the reindex.
+  defp ensure_collection do
+    case Search.create_collection() do
+      {:error, %{message: message}} = error when is_binary(message) ->
+        if duplicate_collection?(message), do: {:ok, :already_exists}, else: error
+
+      result ->
+        result
+    end
+  end
+
+  defp duplicate_collection?(message), do: String.contains?(message, "already exists")
 end
