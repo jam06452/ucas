@@ -485,7 +485,7 @@ defmodule UcasWeb.CourseSearchLive do
       phx-hook="ScrollToTop"
       class="min-h-screen bg-brand-base text-brand-light font-sans"
     >
-      <div class="w-full px-6 py-8 flex flex-col lg:flex-row gap-6">
+      <div class="w-full px-6 py-8 flex flex-col lg:flex-row gap-6 max-w-[1600px] mx-auto">
         <.sidebar
           filters={@filters}
           facets={@facets}
@@ -502,7 +502,7 @@ defmodule UcasWeb.CourseSearchLive do
 
           <div
             :if={@error}
-            class="bg-[#2a1d1a] border border-[#5a3a2e] rounded-3xl p-6 mb-4 text-sm text-[#f0a08c]"
+            class="backdrop-blur-xl bg-[#2a1d1a]/80 border border-[#5a3a2e]/50 rounded-[24px] p-6 mb-4 text-sm text-[#f0a08c] shadow-lg shadow-black/5"
           >
             {@error}
           </div>
@@ -513,18 +513,44 @@ defmodule UcasWeb.CourseSearchLive do
         </div>
       </div>
     </div>
+
+    <style>
+      /* Reduced motion support */
+      @media (prefers-reduced-motion: reduce) {
+        * {
+          animation-duration: 0.01ms !important;
+          transition-duration: 0.01ms !important;
+        }
+      }
+
+      /* Reduced transparency support */
+      @media (prefers-reduced-transparency: reduce) {
+        .backdrop-blur-xl,
+        .backdrop-blur-md,
+        .backdrop-blur-sm {
+          backdrop-filter: none !important;
+        }
+
+        [class*="bg-brand-surface/"],
+        [class*="bg-brand-elevated/"],
+        [class*="bg-brand-base/"],
+        [class*="bg-white/"] {
+          background: rgba(255, 255, 255, 0.95) !important;
+        }
+      }
+    </style>
     """
   end
 
   defp sidebar(assigns) do
     ~H"""
-    <aside class="w-full lg:w-[320px] shrink-0 bg-brand-surface border border-brand-border rounded-3xl p-6 h-fit">
+    <aside class="w-full lg:w-[340px] shrink-0 backdrop-blur-xl bg-brand-surface/80 border border-brand-border/50 rounded-[24px] p-6 h-fit shadow-xl shadow-black/5">
       <div class="flex items-center justify-between mb-6">
-        <h2 class="font-serif text-2xl">Filters</h2>
+        <h2 class="font-serif text-2xl" style="letter-spacing: -0.015em;">Filters</h2>
         <button
           type="button"
           phx-click="clear-all"
-          class="text-brand-accent text-sm hover:text-brand-accent-hover transition-colors focus:outline-none focus:underline"
+          class="text-brand-accent text-sm hover:text-brand-accent-hover active:scale-95 transition-all focus:outline-none focus:underline"
         >
           Reset all
         </button>
@@ -605,8 +631,10 @@ defmodule UcasWeb.CourseSearchLive do
 
   defp calculator(assigns) do
     ~H"""
-    <div id="ucas-calculator" class="pb-6 mb-6 border-b border-brand-border">
-      <h3 class="text-sm font-medium text-brand-light mb-3">UCAS Calculator</h3>
+    <div id="ucas-calculator" class="pb-6 mb-6 border-b border-brand-border/30">
+      <h3 class="text-sm font-medium text-brand-light mb-3" style="letter-spacing: -0.01em;">
+        UCAS Calculator
+      </h3>
 
       <form
         id="ucas-calculator-form"
@@ -623,14 +651,16 @@ defmodule UcasWeb.CourseSearchLive do
           autocomplete="off"
           placeholder="A*A*A* or 192"
           aria-label="A-level grades or UCAS points"
-          class="flex-1 min-w-0 bg-brand-elevated border border-brand-border rounded-xl px-3 py-2 text-sm text-center text-brand-light placeholder:text-brand-subtle focus:outline-none focus:border-brand-border-focus focus:ring-1 focus:ring-brand-border-focus transition-colors"
+          class="flex-1 min-w-0 backdrop-blur-sm bg-brand-elevated/80 border border-brand-border/50 rounded-xl px-3 py-2.5 text-sm text-center text-brand-light placeholder:text-brand-subtle focus:outline-none focus:border-brand-border-focus focus:ring-2 focus:ring-brand-border-focus/50 transition-all"
+          style="letter-spacing: 0.01em;"
         />
 
         <.icon name="hero-arrow-right" class="h-4 w-4 shrink-0 text-brand-muted" />
 
         <div
           id="ucas-result"
-          class="flex-1 min-w-0 bg-brand-base border border-brand-border rounded-xl px-3 py-2 text-sm text-center text-brand-light"
+          class="flex-1 min-w-0 backdrop-blur-sm bg-brand-base/50 border border-brand-border/50 rounded-xl px-3 py-2.5 text-sm text-center text-brand-light"
+          style="letter-spacing: 0.01em;"
         >
           {@result}
         </div>
@@ -670,7 +700,7 @@ defmodule UcasWeb.CourseSearchLive do
       phx-submit="search"
       class="mb-6"
     >
-      <div class="flex items-center gap-3 bg-brand-surface border border-brand-border rounded-2xl px-5 py-4 focus-within:border-brand-border-focus focus-within:ring-1 focus-within:ring-brand-border-focus transition-colors">
+      <div class="flex items-center gap-3 backdrop-blur-xl bg-brand-surface/80 border border-brand-border/50 rounded-[20px] px-5 py-4 shadow-lg shadow-black/5 focus-within:border-brand-border-focus focus-within:ring-2 focus-within:ring-brand-border-focus/50 focus-within:shadow-xl transition-all">
         <.icon name="hero-magnifying-glass" class="h-4 w-4 text-brand-muted shrink-0" />
         <input
           type="text"
@@ -680,6 +710,7 @@ defmodule UcasWeb.CourseSearchLive do
           autocomplete="off"
           placeholder="Search by course, provider or code..."
           class="flex-1 bg-transparent outline-none text-sm placeholder:text-brand-subtle"
+          style="letter-spacing: 0.01em;"
         />
       </div>
     </.form>
@@ -705,7 +736,8 @@ defmodule UcasWeb.CourseSearchLive do
             phx-click="toggle-filter"
             phx-value-field={field}
             phx-value-option={value}
-            class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs bg-brand-elevated border border-brand-border text-brand-light hover:border-brand-border-focus focus:outline-none focus:ring-2 focus:ring-brand-accent transition-colors"
+            class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs backdrop-blur-md bg-brand-elevated/80 border border-brand-border/50 text-brand-light hover:border-brand-border-focus hover:bg-brand-elevated active:scale-95 focus:outline-none focus:ring-2 focus:ring-brand-accent/50 transition-all"
+            style="letter-spacing: 0.01em;"
           >
             {value}
             <.icon name="hero-x-mark" class="h-3 w-3" />
@@ -715,7 +747,8 @@ defmodule UcasWeb.CourseSearchLive do
           :if={tariff_active?(@tariff)}
           type="button"
           phx-click="clear-tariff"
-          class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs bg-brand-elevated border border-brand-border text-brand-light hover:border-brand-border-focus focus:outline-none focus:ring-2 focus:ring-brand-accent transition-colors"
+          class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs backdrop-blur-md bg-brand-elevated/80 border border-brand-border/50 text-brand-light hover:border-brand-border-focus hover:bg-brand-elevated active:scale-95 focus:outline-none focus:ring-2 focus:ring-brand-accent/50 transition-all"
+          style="letter-spacing: 0.01em;"
         >
           {tariff_label(@tariff)}
           <.icon name="hero-x-mark" class="h-3 w-3" />
@@ -724,7 +757,8 @@ defmodule UcasWeb.CourseSearchLive do
           :if={duration_active?(@duration)}
           type="button"
           phx-click="clear-duration"
-          class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs bg-brand-elevated border border-brand-border text-brand-light hover:border-brand-border-focus focus:outline-none focus:ring-2 focus:ring-brand-accent transition-colors"
+          class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs backdrop-blur-md bg-brand-elevated/80 border border-brand-border/50 text-brand-light hover:border-brand-border-focus hover:bg-brand-elevated active:scale-95 focus:outline-none focus:ring-2 focus:ring-brand-accent/50 transition-all"
+          style="letter-spacing: 0.01em;"
         >
           {duration_label(@duration)}
           <.icon name="hero-x-mark" class="h-3 w-3" />
@@ -732,13 +766,13 @@ defmodule UcasWeb.CourseSearchLive do
         <button
           type="button"
           phx-click="clear-all"
-          class="text-xs text-brand-accent hover:text-brand-accent-hover transition-colors ml-1 focus:outline-none focus:underline"
+          class="text-xs text-brand-accent hover:text-brand-accent-hover active:scale-95 transition-all ml-1 focus:outline-none focus:underline"
         >
           Clear all
         </button>
       </div>
 
-      <p class="text-xs text-brand-muted mb-4">
+      <p class="text-xs text-brand-muted mb-4" style="letter-spacing: 0.01em;">
         {format_count(@found)} {if @found == 1, do: "course", else: "courses"} found
         <span :if={@filter_count > 0}>
           &bull; {@filter_count} filter{if @filter_count == 1, do: "", else: "s"}
@@ -757,12 +791,17 @@ defmodule UcasWeb.CourseSearchLive do
         href={ucas_course_url(course)}
         target="_blank"
         rel="noopener noreferrer"
-        class="block bg-brand-surface border border-brand-border rounded-3xl p-6 hover:border-brand-border-hover transition-colors"
+        class="group block backdrop-blur-xl bg-brand-surface/80 border border-brand-border/50 rounded-[24px] p-6 shadow-lg shadow-black/5 hover:border-brand-border-hover hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0 transition-all duration-300"
       >
         <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
           <div class="min-w-0">
-            <h3 class="font-serif text-2xl text-brand-accent mb-1">{course["course_name"]}</h3>
-            <p class="text-sm text-brand-muted">
+            <h3
+              class="font-serif text-2xl text-brand-accent mb-1 group-hover:text-brand-accent-hover transition-colors"
+              style="letter-spacing: -0.015em;"
+            >
+              {course["course_name"]}
+            </h3>
+            <p class="text-sm text-brand-muted" style="letter-spacing: 0.01em;">
               {course["provider_name"]}
               <span :if={course["campus_name"]} class="mx-1.5">&bull;</span>
               {course["campus_name"]}
@@ -772,17 +811,21 @@ defmodule UcasWeb.CourseSearchLive do
           <div class="flex flex-wrap gap-2 sm:justify-end shrink-0">
             <span
               :if={course["course_code"]}
-              class="px-3 py-1.5 rounded-full text-xs font-medium bg-brand-elevated text-brand-light border border-brand-border"
+              class="px-3 py-1.5 rounded-full text-xs font-medium backdrop-blur-sm bg-brand-elevated/80 text-brand-light border border-brand-border/50"
+              style="letter-spacing: 0.01em;"
             >
               {course["course_code"]}
             </span>
-            <span class="px-3 py-1.5 rounded-full text-xs font-medium bg-brand-accent/10 text-brand-accent border border-brand-accent/30">
+            <span
+              class="px-3 py-1.5 rounded-full text-xs font-medium backdrop-blur-sm bg-brand-accent/10 text-brand-accent border border-brand-accent/30"
+              style="letter-spacing: 0.01em;"
+            >
               {course["qualification_name"]}
             </span>
           </div>
         </div>
 
-        <p class="text-sm text-brand-muted mt-4">
+        <p class="text-sm text-brand-muted mt-4" style="letter-spacing: 0.01em;">
           <span :if={course["duration"]}>{course["duration"]}</span>
           <span :if={course["duration"] && course["start_date"]} class="mx-1.5">&bull;</span>
           <span :if={course["start_date"]}>{course["start_date"]}</span>
@@ -792,7 +835,11 @@ defmodule UcasWeb.CourseSearchLive do
           <span :if={course["academic_year"]}>{course["academic_year"]}</span>
         </p>
 
-        <p :if={course["entry_requirements"]} class="text-xs text-brand-subtle mt-3">
+        <p
+          :if={course["entry_requirements"]}
+          class="text-xs text-brand-subtle mt-3"
+          style="letter-spacing: 0.01em;"
+        >
           {course["entry_requirements"]}
         </p>
       </a>
@@ -821,17 +868,19 @@ defmodule UcasWeb.CourseSearchLive do
         phx-click="page"
         phx-value-page={@page - 1}
         disabled={@page <= 1}
-        class="px-4 py-2 rounded-2xl text-sm border border-brand-border text-brand-light hover:border-brand-border-focus focus:outline-none focus:ring-2 focus:ring-brand-accent transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+        class="px-5 py-2.5 rounded-[20px] text-sm backdrop-blur-xl bg-brand-surface/80 border border-brand-border/50 text-brand-light shadow-md shadow-black/5 hover:border-brand-border-focus hover:shadow-lg active:scale-95 focus:outline-none focus:ring-2 focus:ring-brand-accent/50 transition-all disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100"
+        style="letter-spacing: -0.01em;"
       >
         Previous
       </button>
-      <span class="text-xs text-brand-muted">Page {@page} of {@total_pages}</span>
+      <span class="text-xs text-brand-muted" style="letter-spacing: 0.01em;">Page {@page} of {@total_pages}</span>
       <button
         type="button"
         phx-click="page"
         phx-value-page={@page + 1}
         disabled={@page >= @total_pages}
-        class="px-4 py-2 rounded-2xl text-sm border border-brand-border text-brand-light hover:border-brand-border-focus focus:outline-none focus:ring-2 focus:ring-brand-accent transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+        class="px-5 py-2.5 rounded-[20px] text-sm backdrop-blur-xl bg-brand-surface/80 border border-brand-border/50 text-brand-light shadow-md shadow-black/5 hover:border-brand-border-focus hover:shadow-lg active:scale-95 focus:outline-none focus:ring-2 focus:ring-brand-accent/50 transition-all disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100"
+        style="letter-spacing: -0.01em;"
       >
         Next
       </button>
@@ -841,15 +890,18 @@ defmodule UcasWeb.CourseSearchLive do
 
   defp empty_state(assigns) do
     ~H"""
-    <div class="bg-brand-surface border border-brand-border rounded-3xl p-12 text-center">
-      <h3 class="font-serif text-2xl mb-2">No courses match your search</h3>
-      <p class="text-sm text-brand-muted mb-6">
+    <div class="backdrop-blur-xl bg-brand-surface/80 border border-brand-border/50 rounded-[24px] p-12 text-center shadow-lg shadow-black/5">
+      <h3 class="font-serif text-2xl mb-2" style="letter-spacing: -0.015em;">
+        No courses match your search
+      </h3>
+      <p class="text-sm text-brand-muted mb-6" style="letter-spacing: 0.01em;">
         Try a different search term or clear a filter to see more results.
       </p>
       <button
         type="button"
         phx-click="clear-all"
-        class="inline-flex items-center justify-center bg-brand-cream hover:bg-brand-cream-hover text-brand-base font-medium px-6 py-3 rounded-2xl focus:outline-none focus:ring-2 focus:ring-brand-accent focus:ring-offset-2 focus:ring-offset-brand-base transition-colors duration-200 text-sm"
+        class="inline-flex items-center justify-center backdrop-blur-xl bg-white/90 hover:bg-white text-brand-base font-medium px-8 py-4 rounded-[20px] shadow-lg shadow-black/5 hover:shadow-xl active:scale-98 focus:outline-none focus:ring-2 focus:ring-brand-accent/50 transition-all duration-300 text-sm"
+        style="letter-spacing: -0.01em;"
       >
         Reset all filters
       </button>
@@ -907,26 +959,28 @@ defmodule UcasWeb.CourseSearchLive do
       data-unit={@unit}
       data-scale={@scale}
       data-decimals={@decimals}
-      class="pb-6 mb-6 border-b border-brand-border last:border-b-0 last:pb-0 last:mb-0"
+      class="pb-6 mb-6 border-b border-brand-border/30 last:border-b-0 last:pb-0 last:mb-0"
     >
       <div class="flex items-center justify-between mb-3">
-        <h3 class="text-sm font-medium text-brand-light">{@title}</h3>
+        <h3 class="text-sm font-medium text-brand-light" style="letter-spacing: -0.01em;">
+          {@title}
+        </h3>
         <button
           :if={@active?}
           type="button"
           phx-click={@clear_event}
-          class="text-xs text-brand-accent hover:text-brand-accent-hover transition-colors focus:outline-none focus:underline"
+          class="text-xs text-brand-accent hover:text-brand-accent-hover active:scale-95 transition-all focus:outline-none focus:underline"
         >
           Clear
         </button>
       </div>
 
       <div class="relative h-4 flex items-center">
-        <div class="absolute left-0 right-0 top-1/2 -translate-y-1/2 h-1.5 rounded-full bg-brand-elevated">
+        <div class="absolute left-0 right-0 top-1/2 -translate-y-1/2 h-1.5 rounded-full backdrop-blur-sm bg-brand-elevated/60">
         </div>
         <div
           data-role="fill"
-          class="absolute top-1/2 -translate-y-1/2 h-1.5 rounded-full bg-brand-accent"
+          class="absolute top-1/2 -translate-y-1/2 h-1.5 rounded-full bg-brand-accent shadow-sm shadow-brand-accent/20"
           style={range_fill_style(@min, @max, @bounds_min, @bounds_max)}
         >
         </div>
@@ -952,7 +1006,9 @@ defmodule UcasWeb.CourseSearchLive do
         />
       </div>
 
-      <p data-role="range-label" class="mt-3 text-xs text-brand-muted">{@label}</p>
+      <p data-role="range-label" class="mt-3 text-xs text-brand-muted" style="letter-spacing: 0.01em;">
+        {@label}
+      </p>
     </div>
     """
   end
@@ -964,8 +1020,8 @@ defmodule UcasWeb.CourseSearchLive do
   defp range_input_classes(z_index) do
     [
       "absolute inset-0 h-4 w-full appearance-none bg-transparent pointer-events-none",
-      "[&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-brand-base [&::-webkit-slider-thumb]:bg-brand-accent [&::-webkit-slider-thumb]:cursor-grab [&::-webkit-slider-thumb]:transition-transform [&::-webkit-slider-thumb]:hover:scale-110",
-      "[&::-moz-range-thumb]:pointer-events-auto [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-brand-base [&::-moz-range-thumb]:bg-brand-accent [&::-moz-range-thumb]:cursor-grab",
+      "[&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-brand-base [&::-webkit-slider-thumb]:bg-brand-accent [&::-webkit-slider-thumb]:shadow-md [&::-webkit-slider-thumb]:shadow-brand-accent/20 [&::-webkit-slider-thumb]:cursor-grab [&::-webkit-slider-thumb]:transition-transform [&::-webkit-slider-thumb]:hover:scale-110 [&::-webkit-slider-thumb]:active:cursor-grabbing [&::-webkit-slider-thumb]:active:scale-105",
+      "[&::-moz-range-thumb]:pointer-events-auto [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-brand-base [&::-moz-range-thumb]:bg-brand-accent [&::-moz-range-thumb]:shadow-md [&::-moz-range-thumb]:shadow-brand-accent/20 [&::-moz-range-thumb]:cursor-grab [&::-moz-range-thumb]:active:cursor-grabbing",
       z_index
     ]
   end
@@ -984,16 +1040,18 @@ defmodule UcasWeb.CourseSearchLive do
     ~H"""
     <div
       id={"facet-#{@field}"}
-      class="pb-6 mb-6 border-b border-brand-border last:border-b-0 last:pb-0 last:mb-0"
+      class="pb-6 mb-6 border-b border-brand-border/30 last:border-b-0 last:pb-0 last:mb-0"
     >
       <div class="flex items-center justify-between mb-3">
-        <h3 class="text-sm font-medium text-brand-light">{@title}</h3>
+        <h3 class="text-sm font-medium text-brand-light" style="letter-spacing: -0.01em;">
+          {@title}
+        </h3>
         <button
           :if={MapSet.size(@selected) > 0}
           type="button"
           phx-click="clear-filter"
           phx-value-field={@field}
-          class="text-xs text-brand-accent hover:text-brand-accent-hover transition-colors focus:outline-none focus:underline"
+          class="text-xs text-brand-accent hover:text-brand-accent-hover active:scale-95 transition-all focus:outline-none focus:underline"
         >
           Clear
         </button>
@@ -1011,9 +1069,12 @@ defmodule UcasWeb.CourseSearchLive do
             <input
               type="checkbox"
               checked={MapSet.member?(@selected, option.value)}
-              class="h-4 w-4 shrink-0 rounded accent-brand-accent bg-brand-base border-brand-border pointer-events-none focus:ring-2 focus:ring-brand-accent focus:ring-offset-1 focus:ring-offset-brand-surface"
+              class="h-4 w-4 shrink-0 rounded accent-brand-accent bg-brand-base border-brand-border pointer-events-none focus:ring-2 focus:ring-brand-accent focus:ring-offset-1 focus:ring-offset-brand-surface transition-transform group-active:scale-95"
             />
-            <span class="truncate group-hover:text-white transition-colors">{option.value}</span>
+            <span
+              class="truncate group-hover:text-white transition-colors"
+              style="letter-spacing: 0.01em;"
+            >{option.value}</span>
           </span>
           <span class="text-xs text-brand-subtle shrink-0">{option.count}</span>
         </label>
@@ -1031,16 +1092,18 @@ defmodule UcasWeb.CourseSearchLive do
     ~H"""
     <div
       id={"facet-#{@field}"}
-      class="pb-6 mb-6 border-b border-brand-border last:border-b-0 last:pb-0 last:mb-0"
+      class="pb-6 mb-6 border-b border-brand-border/30 last:border-b-0 last:pb-0 last:mb-0"
     >
       <div class="flex items-center justify-between mb-3">
-        <h3 class="text-sm font-medium text-brand-light">{@title}</h3>
+        <h3 class="text-sm font-medium text-brand-light" style="letter-spacing: -0.01em;">
+          {@title}
+        </h3>
         <button
           :if={MapSet.size(@selected) > 0}
           type="button"
           phx-click="clear-filter"
           phx-value-field={@field}
-          class="text-xs text-brand-accent hover:text-brand-accent-hover transition-colors focus:outline-none focus:underline"
+          class="text-xs text-brand-accent hover:text-brand-accent-hover active:scale-95 transition-all focus:outline-none focus:underline"
         >
           Clear
         </button>
@@ -1054,7 +1117,7 @@ defmodule UcasWeb.CourseSearchLive do
           phx-value-field={@field}
           phx-value-option={option.value}
           class={[
-            "px-3 py-1.5 rounded-full text-xs font-medium border transition-colors focus:outline-none focus:ring-2 focus:ring-brand-accent focus:ring-offset-2 focus:ring-offset-brand-surface",
+            "px-3 py-1.5 rounded-full text-xs font-medium border transition-all active:scale-95 focus:outline-none focus:ring-2 focus:ring-brand-accent/50 focus:ring-offset-2 focus:ring-offset-brand-surface",
             if(MapSet.member?(@selected, option.value),
               do: "bg-[#2a2118] text-[#f0a08c] border-[#5a3a2e]",
               else:
