@@ -1,4 +1,10 @@
-# Ucas
+# UCAS Course Search
+
+A Phoenix LiveView application for searching and filtering UK university courses. Features faceted search powered by Typesense, allowing users to filter by qualification, study mode, academic year, provider, and location.
+
+**Data**: The application includes 55,000+ UK higher education course study options (34 MB `courses2.json`) from the 2027 academic year, scraped from ucas.com. Each record contains course details including provider, qualifications, study modes, campuses, duration, entry requirements, and start dates.
+
+## Getting Started
 
 To start your Phoenix server:
 
@@ -7,18 +13,27 @@ To start your Phoenix server:
 
 Now you can visit [`localhost:4000`](http://localhost:4000) from your browser.
 
-## Course search
+## Course Search Architecture
+### Search Technology
 
 Course search and faceted filtering are backed by [Typesense](https://typesense.org)
 through [`ex_typesense`](https://hex.pm/packages/ex_typesense). The local
 Typesense instance is provided by `docker-compose.yml`.
 
+**Setup:**
+
 1. Start the services: `docker compose up -d`
 2. Load the course data into Postgres: `python3 load_courses.py`
 3. Build the search index: `mix ucas.search.reindex`
 
-The `course_study_options` collection is a flattened read model of the
-normalised tables (see `Ucas.Search.Document`). Typesense keeps its own copy
+### Data Flow
+
+- **Source**: `courses2.json` — 55,419 flattened course study option records
+- **Storage**: Normalized PostgreSQL schema (providers → campuses, courses → study options)
+- **Search Index**: Typesense `course_study_options` collection (flattened read model)
+
+The `course_study_options` collection is a denormalized read model built from the
+normalized Postgres tables (see `Ucas.Search.Document`). Typesense keeps its own copy
 of the data, so the index is built from Postgres only — `courses2.json` is
 just the seed used by `load_courses.py` and is not needed at runtime.
 
